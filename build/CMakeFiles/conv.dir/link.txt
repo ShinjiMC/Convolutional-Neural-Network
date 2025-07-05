@@ -1,0 +1,1 @@
+/usr/bin/c++  -O3 -fopenmp  -fopenmp CMakeFiles/conv.dir/main_cnv.cpp.o CMakeFiles/conv.dir/src/conv2d.cpp.o CMakeFiles/conv.dir/src/flatten.cpp.o CMakeFiles/conv.dir/src/pooling.cpp.o -o conv

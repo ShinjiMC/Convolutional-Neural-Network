@@ -1,0 +1,5 @@
+/home/shinji/Escritorio/Proyectos/cnn/build/CMakeFiles/mlp_train.dir
+/home/shinji/Escritorio/Proyectos/cnn/build/CMakeFiles/mlp_test.dir
+/home/shinji/Escritorio/Proyectos/cnn/build/CMakeFiles/conv.dir
+/home/shinji/Escritorio/Proyectos/cnn/build/CMakeFiles/edit_cache.dir
+/home/shinji/Escritorio/Proyectos/cnn/build/CMakeFiles/rebuild_cache.dir

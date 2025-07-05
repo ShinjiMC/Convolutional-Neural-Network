@@ -1,0 +1,1 @@
+/usr/bin/c++  -O3 -fopenmp  -fopenmp CMakeFiles/mlp_train.dir/main_train.cpp.o CMakeFiles/mlp_train.dir/src/layer.cpp.o CMakeFiles/mlp_train.dir/src/mlp.cpp.o CMakeFiles/mlp_train.dir/src/neuron.cpp.o CMakeFiles/mlp_train.dir/src/dataset.cpp.o CMakeFiles/mlp_train.dir/src/config.cpp.o CMakeFiles/mlp_train.dir/src/regularizer.cpp.o -o mlp_train
