@@ -1,7 +1,7 @@
 #pragma once
 #include <random>
 #include <omp.h>
-#include "neuron.hpp"
+#include "optimizer.hpp"
 #include "activation.hpp"
 #include <memory>
 class Layer
@@ -9,7 +9,6 @@ class Layer
 private:
     int input_size;
     int output_size;
-    std::vector<Neuron> neurons;
     ActivationType activation;
 
     std::vector<std::vector<double>> weights; // [output_size][input_size]
@@ -23,9 +22,6 @@ public:
         std::mt19937 gen(rd());
         double limit = std::sqrt(6.0 / (input_size + output_size));
         std::uniform_real_distribution<> dis(-limit, limit);
-
-        // for (int i = 0; i < output_size; ++i)
-        //     neurons.emplace_back(input_size, gen, dis);
         weights.resize(output_size, std::vector<double>(input_size));
         biases.resize(output_size, 0.0);
 
@@ -52,14 +48,10 @@ public:
     const int get_output_size() const { return output_size; }
     const int get_inputss() const { return input_size; }
     const int get_outputss() const { return output_size; }
-    std::vector<Neuron> &get_neurons() { return neurons; }
-    const std::vector<Neuron> &get_neuronss() const { return neurons; }
     ActivationType get_activation() const { return activation; }
-    const int get_neurons_size() const { return neurons.size(); }
     void save(std::ostream &out, const int i) const;
     void load(std::istream &in);
     double compute_penalty() const;
-    // Devuelve el peso entre la neurona `output_idx` y entrada `input_idx`
     double get_weight(int output_idx, int input_idx) const
     {
         return weights[output_idx][input_idx];

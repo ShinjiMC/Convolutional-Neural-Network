@@ -1,19 +1,19 @@
 #pragma once
 #include <vector>
+#include "tensor.hpp"
 
 class Flatten
 {
 private:
-    // Guarda la forma original para un posible reshape inverso
     int channels, height, width;
 
 public:
-    // Convierte un tensor [C][H][W] a vector 1D
-    std::vector<double> forward(const std::vector<std::vector<std::vector<double>>> &input);
+    // Convierte [N][C][H][W] → [N][C*H*W]
+    std::vector<std::vector<double>> forward(const Tensor4D &input);
 
-    // Reshape inverso (se puede llamar como backward)
-    std::vector<std::vector<std::vector<double>>> backward(const std::vector<double> &grad_output);
+    // Convierte [N][C*H*W] → [N][C][H][W]
+    Tensor4D backward(const std::vector<std::vector<double>> &grad_output);
 
-    // Reshape explícito (igual a backward, por legibilidad)
-    std::vector<std::vector<std::vector<double>>> reshape(const std::vector<double> &input_flat);
+    // Getter de dimensiones (para capas siguientes)
+    int get_flattened_size() const { return channels * height * width; }
 };

@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include "tensor.hpp"
 
 enum PoolingType
 {
@@ -17,19 +18,13 @@ private:
     int padding;
     PoolingType type;
 
-    std::vector<std::vector<std::vector<std::vector<bool>>>> mask;
+    std::vector<Tensor4D> masks;
 
-    double pool_region(const std::vector<std::vector<double>> &region) const;
+    double pool_region(const std::vector<double> &region) const;
 
 public:
     Pooling(int kernel_h, int kernel_w, int stride, int padding, PoolingType type);
 
-    // Aplica pooling a una entrada [C][H][W]
-    std::vector<std::vector<std::vector<double>>> forward(
-        const std::vector<std::vector<std::vector<double>>> &input);
-
-    // bvackward
-    std::vector<std::vector<std::vector<double>>> backward(
-        const std::vector<std::vector<std::vector<double>>> &input,
-        const std::vector<std::vector<std::vector<double>>> &grad_output);
+    Tensor4D forward(const Tensor4D &input);
+    Tensor4D backward(const Tensor4D &input, const Tensor4D &grad_output);
 };

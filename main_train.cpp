@@ -20,6 +20,18 @@ std::string get_last_folder(const std::string &path)
     return cleaned_path.substr(slash + 1);
 }
 
+Tensor2D to_tensor2d(const std::vector<std::vector<double>> &data)
+{
+    if (data.empty())
+        return Tensor2D(0, 0);
+    int batch_size = data.size();
+    int n_features = data[0].size();
+    Tensor2D tensor(batch_size, n_features);
+    for (int i = 0; i < batch_size; ++i)
+        tensor.set_row(i, std::move(data[i]));
+    return tensor;
+}
+
 int main(int argc, char *argv[])
 {
     bool use_saved_model = false;
@@ -121,12 +133,14 @@ int main(int argc, char *argv[])
 
     std::string dataset_name = get_last_folder(dataset_dir);
     save_path = "./output/" + dataset_name + "/final.dat";
+    Tensor2D X_train_tensor = to_tensor2d(std::move(X_train));
+    Tensor2D X_test_tensor = to_tensor2d(std::move(X_test));
 
     std::cout << "Training neural network for " << epochs << " epoch(s)...\n";
     if (epochs_train)
-        nn.train_test(X_train, y_train, X_test, y_test, true, dataset_name, epochs);
+        nn.train_test(X_train_tensor, y_train, X_test_tensor, y_test, true, dataset_name, epochs);
     else
-        nn.train_test(X_train, y_train, X_test, y_test, true, dataset_name);
+        nn.train_test(X_train_tensor, y_train, X_test_tensor, y_test, true, dataset_name);
     nn.save_data(save_path);
     return 0;
 }

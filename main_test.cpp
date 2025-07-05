@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     test.print_data("TEST");
 
     // Ejecutar evaluación
-    nn.test_info(X_test, y_test);
+    // nn.test_info(X_test, y_test);
 
     return 0;
 }

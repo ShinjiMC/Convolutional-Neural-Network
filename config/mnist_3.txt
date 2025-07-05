@@ -1,0 +1,3 @@
+128 64 10
+0.01 
+relu relu softmax 

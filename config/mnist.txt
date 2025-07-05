@@ -1,0 +1,4 @@
+128 10
+0.0005
+relu softmax 
+adam

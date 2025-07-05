@@ -1,1 +1,0 @@
-/usr/bin/c++  -O3 -fopenmp  -fopenmp CMakeFiles/mlp_test.dir/main_test.cpp.o CMakeFiles/mlp_test.dir/src/layer.cpp.o CMakeFiles/mlp_test.dir/src/mlp.cpp.o CMakeFiles/mlp_test.dir/src/neuron.cpp.o CMakeFiles/mlp_test.dir/src/dataset.cpp.o CMakeFiles/mlp_test.dir/src/config.cpp.o CMakeFiles/mlp_test.dir/src/regularizer.cpp.o -o mlp_test

@@ -1,0 +1,7 @@
+.vscode
+build
+perceptron
+*.pdf
+output
+database/MNIST/*.txt
+test/*.txt
