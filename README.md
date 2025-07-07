@@ -169,18 +169,23 @@ El **MLP (Perceptrón Multicapa)** es un tipo de red neuronal artificial compues
 
 ## Ejecución
 
-Para compilar y ejecutar el proyecto, basta con usar:
+Para compilar y ejecutar el proyecto, simplemente usa:
 
 ```bash
 make run
 ```
 
-Antes de entrenar, asegúrate de descargar los datasets necesarios desde los releases disponibles:
+Antes de entrenar, asegúrate de descargar los datasets necesarios desde los siguientes enlaces:
 
-- **MNIST**
-- **FashionMNIST**
+- [**MNIST**](https://github.com/ShinjiMC/Convolutional-Neural-Network/releases/download/CNN_FASHION/MNIST_dataset.tar.gz)
+- [**FashionMNIST**](https://github.com/ShinjiMC/Convolutional-Neural-Network/releases/download/CNN_FASHION/FASHION_dataset.tar.gz)
 
-Una vez descargados, colócalos en el directorio `database/`.
+Una vez descargados, descomprime los archivos y colócalos en el directorio `database/`. Por ejemplo:
+
+```bash
+tar -xvzf MNIST_dataset.tar.gz -C database/
+tar -xvzf FASHION_dataset.tar.gz -C database/
+```
 
 Luego podrás ejecutar el entrenamiento con el siguiente comando, por ejemplo para FashionMNIST:
 
@@ -216,7 +221,7 @@ El entrenamiento de esta arquitectura generó el siguiente gráfico:
 
 ![graphic_cnn](.docs/graphic_cnn.png)
 
-Adicionalmente, se entrenó una versión basada únicamente en MLP para observar la diferencia de desempeño. Esta arquitectura fue:
+Adicionalmente, se entrenó una versión basada únicamente en MLP para observar la diferencia de desempeño. Esta arquitectura fue implementada en el repositorio [MLP-MNIST](https://github.com/ShinjiMC/MLP-MNIST):
 
 ```text
 MLP:
