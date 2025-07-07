@@ -5,3 +5,4 @@ perceptron
 output
 database/MNIST/*.txt
 test/*.txt
+database/FASHION/*.txt

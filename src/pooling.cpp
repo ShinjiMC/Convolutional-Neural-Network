@@ -1,9 +1,9 @@
-#include "pooling.hpp"
+#include "pooling_core.hpp"
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
 #include <cmath>
-
+#include <iostream>
 Pooling::Pooling(int kernel_h, int kernel_w, int stride, int padding, PoolingType type)
     : kernel_h(kernel_h), kernel_w(kernel_w), stride(stride), padding(padding), type(type) {}
 
@@ -30,6 +30,8 @@ Tensor4D Pooling::forward(const Tensor4D &input)
     int W = input.width();
     int out_h = (H + 2 * padding - kernel_h) / stride + 1;
     int out_w = (W + 2 * padding - kernel_w) / stride + 1;
+    // std::cout << "[Pooling forward] = [" << N << "x" << C << "x" << H << "x" << W << "]"
+    //           << " ==> [" << N << "x" << C << "x" << out_h << "x" << out_w << "]\n";
     Tensor4D output(N, C, out_h, out_w);
     masks.clear();
     if (type == MAX || type == MIN)
@@ -72,6 +74,8 @@ Tensor4D Pooling::backward(const Tensor4D &input, const Tensor4D &grad_output)
     int W = input.width();
     int out_h = grad_output.height();
     int out_w = grad_output.width();
+    // std::cout << "[Pooling backward] [" << N << "x" << C << "x" << out_h << "x" << out_w << "]"
+    //           << " ==> [" << N << "x" << C << "x" << H << "x" << W << "]\n";
     Tensor4D grad_input(N, C, H, W); // inicializado en 0
     for (int n = 0; n < N; ++n)
         for (int c = 0; c < C; ++c)

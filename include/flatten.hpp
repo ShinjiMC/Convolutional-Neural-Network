@@ -1,19 +1,42 @@
 #pragma once
-#include <vector>
+#include <memory>
 #include "tensor.hpp"
+#include "tensor2d.hpp"
+#include "layer_cnn.hpp"
+#include "flatten_core.hpp"
 
-class Flatten
+class FlattenLayer : public LayerCNN
 {
 private:
-    int channels, height, width;
+    std::unique_ptr<Flatten> flatten;
+    Tensor4D input_cache;
+    Tensor2D output;
 
 public:
-    // Convierte [N][C][H][W] → [N][C*H*W]
-    std::vector<std::vector<double>> forward(const Tensor4D &input);
+    FlattenLayer()
+    {
+        flatten = std::make_unique<Flatten>();
+    }
 
-    // Convierte [N][C*H*W] → [N][C][H][W]
-    Tensor4D backward(const std::vector<std::vector<double>> &grad_output);
+    void forward(const Tensor4D &input) override
+    {
+        input_cache = input;
+        output = flatten->forward(input);
+    }
 
-    // Getter de dimensiones (para capas siguientes)
-    int get_flattened_size() const { return channels * height * width; }
+    const Tensor2D &output_2d() const override
+    {
+        return output;
+    }
+
+    Tensor4D backward_from_2d(const Tensor2D &grad_output) override
+    {
+        return flatten->backward(grad_output);
+    }
+
+    void update_weights(double /*lr*/) override {}
+
+    bool is_2d_output() const override { return true; }
+
+    Flatten *get_flatten() { return flatten.get(); }
 };

@@ -1,4 +1,4 @@
-#include "conv2d.hpp"
+#include "conv2d_core.hpp"
 #include <cmath>
 #include <iostream>
 #include <random>
@@ -34,6 +34,8 @@ Tensor4D Conv2D::forward(const Tensor4D &batch_input)
     int W = batch_input.width();
     int out_h = (H + 2 * padding - kernel_h) / stride + 1;
     int out_w = (W + 2 * padding - kernel_w) / stride + 1;
+    // std::cout << "[Conv2D forward] = [" << N << "x" << in_channels << "x" << H << "x" << W << "]"
+    //           << " ==> [" << N << "x" << out_channels << "x" << out_h << "x" << out_w << "]" << std::endl;
     Tensor4D output(N, out_channels, out_h, out_w);
     last_input = batch_input;
     pre_activations = Tensor4D(N, out_channels, out_h, out_w);
@@ -71,9 +73,12 @@ Tensor4D Conv2D::backward(const Tensor4D &grad_output)
     int out_w = grad_output.width();
     int in_h = last_input.height();
     int in_w = last_input.width();
-    Tensor4D grad_input(N, in_channels, in_h, in_w);
-    d_filters = Tensor4D(out_channels, in_channels, kernel_h, kernel_w);
+
+    Tensor4D grad_input(N, in_channels, in_h, in_w, 0.0);
+    d_filters = Tensor4D(out_channels, in_channels, kernel_h, kernel_w, 0.0);
     d_biases.assign(out_channels, 0.0);
+    // std::cout << "[Conv2D backward] grad_output = [" << N << "x" << out_channels << "x" << out_h << "x" << out_w << "]"
+    //           << " ==> grad_input = [" << N << "x" << in_channels << "x" << in_h << "x" << in_w << "]" << std::endl;
     for (int n = 0; n < N; ++n)
         for (int oc = 0; oc < out_channels; ++oc)
             for (int i = 0; i < out_h; ++i)
@@ -87,7 +92,9 @@ Tensor4D Conv2D::backward(const Tensor4D &grad_output)
                         grad *= sigmoid_derivative(z);
                     else if (activation == TANH)
                         grad *= tanh_derivative(z);
+
                     d_biases[oc] += grad;
+
                     for (int ic = 0; ic < in_channels; ++ic)
                         for (int ki = 0; ki < kernel_h; ++ki)
                             for (int kj = 0; kj < kernel_w; ++kj)
@@ -98,15 +105,40 @@ Tensor4D Conv2D::backward(const Tensor4D &grad_output)
                                 {
                                     double input_val = last_input(n, ic, xi, xj);
                                     d_filters(oc, ic, ki, kj) += input_val * grad;
-                                    grad_input(n, ic, xi, xj) += filters(oc, ic, ki, kj) * grad;
+
+                                    // filtro reflejado (convolución transpuesta)
+                                    int rki = kernel_h - 1 - ki;
+                                    int rkj = kernel_w - 1 - kj;
+                                    grad_input(n, ic, xi, xj) += filters(oc, ic, rki, rkj) * grad;
                                 }
                             }
                 }
+
+    // 🔧 Normalización por batch
+    double scale = 1.0 / N;
+    for (int oc = 0; oc < out_channels; ++oc)
+    {
+        d_biases[oc] *= scale;
+        for (int ic = 0; ic < in_channels; ++ic)
+            for (int ki = 0; ki < kernel_h; ++ki)
+                for (int kj = 0; kj < kernel_w; ++kj)
+                    d_filters(oc, ic, ki, kj) *= scale;
+    }
+
     return grad_input;
 }
 
 void Conv2D::update_weights(double lr)
 {
+    // double max_grad = 0.0;
+    // for (int oc = 0; oc < out_channels; ++oc)
+    //     for (int ic = 0; ic < in_channels; ++ic)
+    //         for (int i = 0; i < kernel_h; ++i)
+    //             for (int j = 0; j < kernel_w; ++j)
+    //                 max_grad = std::max(max_grad, std::abs(d_filters(oc, ic, i, j)));
+
+    // std::cout << "[Conv2D update_weights] max_grad = " << max_grad << std::endl;
+    // std::cout << "[Conv2D update_weights] learning rate = " << lr << std::endl;
     for (int oc = 0; oc < out_channels; ++oc)
     {
         for (int ic = 0; ic < in_channels; ++ic)
@@ -115,4 +147,6 @@ void Conv2D::update_weights(double lr)
                     filters(oc, ic, i, j) -= lr * d_filters(oc, ic, i, j);
         biases[oc] -= lr * d_biases[oc];
     }
+    d_filters.fill(0.0);
+    std::fill(d_biases.begin(), d_biases.end(), 0.0);
 }

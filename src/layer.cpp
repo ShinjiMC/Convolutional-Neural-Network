@@ -85,6 +85,17 @@ void Layer::apply_update(std::shared_ptr<Optimizer> optimizer, const std::vector
 double Layer::compute_penalty() const
 {
     double sum = 0.0;
+
+    if (weights.empty())
+    {
+        std::cout << "Vacio weights" << std::endl;
+        return sum; // Evitar división por cero
+    }
+    if (weights[0].empty())
+    {
+        std::cout << "Vacio weights[0]" << std::endl;
+        return sum; // Evitar división por cero
+    }
     size_t rows = weights.size();
     size_t cols = weights[0].size();
 #pragma omp parallel for reduction(+ : sum)

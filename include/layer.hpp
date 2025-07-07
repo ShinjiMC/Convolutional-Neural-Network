@@ -56,4 +56,8 @@ public:
     {
         return weights[output_idx][input_idx];
     }
+    const std::vector<std::vector<double>> &get_weights() const
+    {
+        return weights;
+    }
 };

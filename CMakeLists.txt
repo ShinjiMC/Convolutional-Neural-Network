@@ -9,31 +9,14 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
 
 include_directories(include)
 
-# Ejecutable de entrenamiento
-add_executable(mlp_train
-     main_train.cpp
+add_executable(cnn_train
+     main_train_cnn.cpp
      src/layer.cpp
      src/mlp.cpp
      src/neuron.cpp
      src/dataset.cpp
      src/config.cpp
      src/regularizer.cpp
-)
-
-# Ejecutable de prueba
-add_executable(mlp_test
-     main_test.cpp
-     src/layer.cpp
-     src/mlp.cpp
-     src/neuron.cpp
-     src/dataset.cpp
-     src/config.cpp
-     src/regularizer.cpp
-)
-
-# Ejecutable de conv
-add_executable(conv
-     main_cnv.cpp
      src/conv2d.cpp
      src/flatten.cpp
      src/pooling.cpp

@@ -1,31 +1,45 @@
 #pragma once
-#include <vector>
-#include "activation.hpp"
+#include <memory>
 #include "tensor.hpp"
-
-class Conv2D
+#include "layer_cnn.hpp"
+#include "conv2d_core.hpp"
+class Conv2DLayer : public LayerCNN
 {
 private:
-    int in_channels, out_channels;
-    int kernel_h, kernel_w;
-    int stride, padding;
-    ActivationType activation;
-
-    Tensor4D filters; // [out_channels][in_channels][kH][kW]
-    std::vector<double> biases;
-
-    Tensor4D d_filters; // same as filters
-    std::vector<double> d_biases;
-
-    Tensor4D last_input;      // [batch][in_channels][H][W]
-    Tensor4D pre_activations; // [batch][out_channels][H_out][W_out]
-    void initialize_filters();
+    std::unique_ptr<Conv2D> conv;
+    Tensor4D output;
 
 public:
-    Conv2D(int in_channels, int out_channels, int kernel_h, int kernel_w,
-           int stride = 1, int padding = 0, ActivationType activation = RELU);
+    Conv2DLayer(int in_channels, int out_channels, int kernel_h, int kernel_w,
+                int stride = 1, int padding = 0, ActivationType activation = RELU)
+    {
+        conv = std::make_unique<Conv2D>(in_channels, out_channels, kernel_h, kernel_w, stride, padding, activation);
+    }
 
-    Tensor4D forward(const Tensor4D &batch_input);
-    Tensor4D backward(const Tensor4D &grad_output);
-    void update_weights(double lr);
+    void forward(const Tensor4D &input) override
+    {
+        output = conv->forward(input);
+    }
+
+    const Tensor4D &output_4d() const override
+    {
+        return output;
+    }
+
+    Tensor4D backward(const Tensor4D &grad_output) override
+    {
+        return conv->backward(grad_output);
+    }
+
+    void update_weights(double lr) override
+    {
+        conv->update_weights(lr);
+    }
+
+    bool is_2d_output() const override
+    {
+        return false;
+    }
+
+    Conv2D *get_conv() { return conv.get(); }
 };

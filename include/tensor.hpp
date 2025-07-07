@@ -44,4 +44,16 @@ public:
 
     std::vector<double> &flat() { return data; }
     const std::vector<double> &flat() const { return data; }
+    Tensor4D batch(int index) const
+    {
+        if (index < 0 || index >= n)
+            throw std::out_of_range("Batch index out of range");
+
+        Tensor4D single(1, c, h, w);
+        for (int ci = 0; ci < c; ++ci)
+            for (int hi = 0; hi < h; ++hi)
+                for (int wi = 0; wi < w; ++wi)
+                    single(0, ci, hi, wi) = (*this)(index, ci, hi, wi);
+        return single;
+    }
 };

@@ -1,4 +1,4 @@
-#include "mlp.hpp"
+#include "mlp_core.hpp"
 
 Mlp::Mlp(int n_inputs, const std::vector<int> &layer_sizes, int n_outputs,
          double lr, std::vector<ActivationType> activation_types, optimizer_type opt,
@@ -37,163 +37,144 @@ Mlp::Mlp(int n_inputs, const std::vector<int> &layer_sizes, int n_outputs,
     }
 }
 
-void Mlp::forward_batch(const Tensor2D &input_batch,
-                        bool train)
+void Mlp::forward(const std::vector<double> &input,
+                  std::vector<std::vector<double>> &activations,
+                  bool train)
 {
-    int batch = input_batch.batch_size();
-    reusable_activations.clear();
-    reusable_activations.emplace_back(input_batch);
-    for (size_t l = 0; l < layers.size(); ++l)
+    // std::cout << "[MLP forward] input size = " << input.size() << "\n";
+    activations.clear();
+    activations.push_back(input);
+    std::vector<double> current = input;
+
+    for (size_t i = 0; i < layers.size(); ++i)
     {
-        const Tensor2D &prev = reusable_activations.back();
-        int out_size = layers[l].get_output_size();
-        Tensor2D current(batch, out_size);
-        for (int b = 0; b < batch; ++b)
-        {
-            std::vector<double> output(out_size);
-            layers[l].linear_forward(prev.row(b), output);
-            layers[l].apply_activation(output);
-            if (dropout && train && l < layers.size() - 1)
-                dropout->apply(output);
-            current.set_row(b, output);
-        }
-        reusable_activations.emplace_back(std::move(current));
+        std::vector<double> output(layers[i].get_output_size());
+        layers[i].linear_forward(current, output);
+        layers[i].apply_activation(output);
+        if (dropout && train && i < layers.size() - 1)
+            dropout->apply(output);
+        activations.push_back(output);
+        current = std::move(output);
     }
+
+    // Convertir salida final a Tensor2D y guardarla
+    output_tensor.resize(1, current.size());
+    output_tensor.set_row(0, current);
+    // std::cout << "[MLP forward] final output size = " << current.size() << "\n";
 }
 
-void Mlp::backward_batch(const Tensor2D &input_batch,
-                         const std::vector<int> &labels)
+void Mlp::backward(const std::vector<double> &input,
+                   const std::vector<std::vector<double>> &activations,
+                   const std::vector<double> &expected)
 {
-    int batch = input_batch.batch_size();
-    const auto &activations = reusable_activations;
-
-    if ((int)reusable_deltas.size() != (int)layers.size())
-    {
-        reusable_deltas.resize(layers.size());
-        for (size_t l = 0; l < layers.size(); ++l)
-            reusable_deltas[l] = Tensor2D(batch, layers[l].get_output_size());
-    }
-
-    std::vector<double> expected(n_outputs);
+    // std::cout << "[MLP backward] output size = " << activations.back().size()
+    //           << ", target size = " << expected.size() << "\n";
+    std::vector<std::vector<double>> deltas(layers.size());
     for (int l = (int)layers.size() - 1; l >= 0; --l)
     {
-        int out_size = layers[l].get_output_size();
-        for (int b = 0; b < batch; ++b)
+        int n_neurons = layers[l].get_output_size();
+        deltas[l].resize(n_neurons);
+        if (layers[l].get_activation() == SOFTMAX)
+            for (int i = 0; i < n_neurons; ++i)
+                deltas[l][i] = activations[l + 1][i] - expected[i];
+        else
         {
-            double *delta = reusable_deltas[l].row_ptr(b);
-            std::fill(delta, delta + out_size, 0.0);
-            const std::vector<double> &output = activations[l + 1].row(b);
-            one_hot_encode_ptr(labels[b], expected.data(), n_outputs);
-            if (layers[l].get_activation() == SOFTMAX)
-                for (int i = 0; i < out_size; ++i)
-                    delta[i] = output[i] - expected[i];
-            else
-                for (int i = 0; i < out_size; ++i)
+#pragma omp parallel for
+            for (int i = 0; i < n_neurons; ++i)
+            {
+                double error = 0.0;
+                if (l + 1 < (int)layers.size())
                 {
-                    double error = 0.0;
-                    if (l + 1 < (int)layers.size())
-                        for (int j = 0; j < layers[l + 1].get_output_size(); ++j)
-                            error += reusable_deltas[l + 1](b, j) * layers[l + 1].get_weight(j, i);
-                    if (layers[l].get_activation() == RELU)
-                        delta[i] = error * relu_derivative(output[i]);
-                    else if (layers[l].get_activation() == SIGMOID)
-                        delta[i] = error * sigmoid_derivative(output[i]);
-                    else
-                        delta[i] = error * tanh_derivative(output[i]);
+                    for (int j = 0; j < layers[l + 1].get_output_size(); ++j)
+                        error += deltas[l + 1][j] * layers[l + 1].get_weight(j, i);
                 }
+                if (layers[l].get_activation() == RELU)
+                    deltas[l][i] = error * relu_derivative(activations[l + 1][i]);
+                else if (layers[l].get_activation() == SIGMOID)
+                    deltas[l][i] = error * sigmoid_derivative(activations[l + 1][i]);
+                else // TANH
+                    deltas[l][i] = error * tanh_derivative(activations[l + 1][i]);
+            }
         }
     }
-    for (size_t l = 0; l < layers.size(); ++l)
-        for (int b = 0; b < batch; ++b)
-            layers[l].apply_update(optimizer, reusable_deltas[l].row(b),
-                                   activations[l].row(b), learning_rate, l);
-}
 
-void Mlp::train_batch(const Tensor2D &input_batch,
-                      const std::vector<int> &labels, double &avg_loss)
-{
-    forward_batch(input_batch, true);
-    const Tensor2D &output_batch = reusable_activations.back();
-
-    double total_loss = 0.0;
-    std::vector<double> expected(n_outputs);
-
-    for (int b = 0; b < input_batch.batch_size(); ++b)
+    if (this->optimizer == nullptr)
     {
-        one_hot_encode_ptr(labels[b], expected.data(), n_outputs);
-        total_loss += cross_entropy_loss_ptr(output_batch.row_ptr(b), expected.data(), n_outputs);
+        std::cerr << "Error: optimizer is nullptr \n";
+        exit(1);
     }
 
-    backward_batch(input_batch, labels);
-    avg_loss = total_loss / input_batch.batch_size();
+    for (size_t l = 0; l < layers.size(); ++l)
+        layers[l].apply_update(this->optimizer, deltas[l], activations[l], learning_rate, l);
+    grad.resize(input.size(), 0.0);
+    for (int i = 0; i < layers[0].get_output_size(); ++i)
+        for (int j = 0; j < (int)input.size(); ++j)
+            grad[j] += deltas[0][i] * layers[0].get_weight(i, j);
+    // std::cout << "[MLP backward] grad size = " << grad.size() << "\n";
 }
 
-void Mlp::train_with_batches(const Tensor2D &images,
-                             const std::vector<int> &labels,
-                             double &avg_loss,
-                             int batch_size)
+void Mlp::train(const Tensor2D &images,
+                const std::vector<int> &labels,
+                double &avg_loss)
 {
-    int n = images.batch_size();
-    std::vector<int> indices(n);
+    size_t n = images.batch_size();
+    std::vector<size_t> indices(n);
     std::iota(indices.begin(), indices.end(), 0);
     std::shuffle(indices.begin(), indices.end(), std::mt19937{std::random_device{}()});
+
+    std::vector<double> target(n_outputs);
+    std::vector<std::vector<double>> activations;
     double total_loss = 0.0;
     double penalty = 0.0;
-    int total_batches = (n + batch_size - 1) / batch_size;
-    std::cout << "Batch " << 0 << "/" << total_batches << "\r" << std::flush;
-    for (int r = 0; r < total_batches; ++r)
+
+    for (size_t k = 0; k < n; ++k)
     {
-        int start = r * batch_size;
-        int end = std::min(start + batch_size, n);
-        int current_batch_size = end - start;
-        Tensor2D batch(current_batch_size, n_inputs);
-        std::vector<int> batch_labels(current_batch_size);
-        for (int i = 0; i < current_batch_size; ++i)
-        {
-            batch.set_row(i, images.row(indices[start + i]));
-            batch_labels[i] = labels[indices[start + i]];
-        }
-        std::cout << "Batch " << (r + 1) << "/" << total_batches << "\r" << std::flush;
-        double batch_loss;
-        train_batch(batch, batch_labels, batch_loss);
-        total_loss += batch_loss * current_batch_size;
+        size_t i = indices[k];
+        const std::vector<double> &input = images.row(i);
+        int label = labels[i];
+        one_hot_encode(label, target);
+        forward(input, activations, true);
+        total_loss += cross_entropy_loss(activations.back(), target);
+        backward(input, activations, target);
     }
+
     if (regularizer)
         penalty = regularizer->compute_penalty(layers);
+
     avg_loss = (total_loss + penalty) / n;
 }
-
 void Mlp::test(const Tensor2D &images,
                const std::vector<int> &labels,
                double &test_accuracy)
 {
     int correct = 0;
-    forward_batch(images, false);
-    const Tensor2D &output_batch = reusable_activations.back();
+    std::vector<std::vector<double>> activations;
     for (int i = 0; i < images.batch_size(); ++i)
     {
-        const std::vector<double> &output = output_batch.row(i);
-        int pred = std::distance(output.begin(), std::max_element(output.begin(), output.end()));
+        const std::vector<double> &input = images.row(i);
+        forward(input, activations, false);
+        int pred = std::distance(activations.back().begin(), std::max_element(activations.back().begin(), activations.back().end()));
         if (pred == labels[i])
             ++correct;
     }
+
     test_accuracy = 100.0 * correct / images.batch_size();
 }
-
 void Mlp::evaluate(const Tensor2D &images,
                    const std::vector<int> &labels,
                    double &train_accuracy)
 {
     int correct = 0;
-    forward_batch(images, false);
-    const Tensor2D &output_batch = reusable_activations.back();
+    std::vector<std::vector<double>> activations;
     for (int i = 0; i < images.batch_size(); ++i)
     {
-        const std::vector<double> &output = output_batch.row(i);
-        int pred = std::distance(output.begin(), std::max_element(output.begin(), output.end()));
+        const std::vector<double> &input = images.row(i);
+        forward(input, activations, false);
+        int pred = std::distance(activations.back().begin(), std::max_element(activations.back().begin(), activations.back().end()));
         if (pred == labels[i])
             ++correct;
     }
+
     train_accuracy = 100.0 * correct / images.batch_size();
 }
 
@@ -217,9 +198,8 @@ void Mlp::train_test(const Tensor2D &train_images, const std::vector<int> &train
 
     while (true)
     {
-        int batch_size = 128;
         auto train_start = std::chrono::high_resolution_clock::now();
-        train_with_batches(train_images, train_labels, average_loss, batch_size);
+        train(train_images, train_labels, average_loss);
         auto train_end = std::chrono::high_resolution_clock::now();
         double train_time = std::chrono::duration<double>(train_end - train_start).count();
         evaluate(train_images, train_labels, train_accuracy);
